@@ -13,8 +13,11 @@ public static class ConsolePermuter
     /// <summary>
     /// Permutes all the areas to print out all possible spawns.
     /// </summary>
-    public static void PermuteMassiveMassOutbreak(Span<byte> data)
+    public static (List<string>, List<string>) PermuteMassiveMassOutbreak(Span<byte> data)
     {
+        List<string> alist = new();
+        List<string> blist = new();
+        string log = string.Empty;
         var block = new MassiveOutbreakSet8a(data);
         for (int i = 0; i < MassiveOutbreakSet8a.AreaCount; i++)
         {
@@ -22,7 +25,7 @@ public static class ConsolePermuter
             var areaName = AreaUtil.AreaTable[area.AreaHash];
             if (!area.IsActive)
             {
-                Console.WriteLine($"No outbreak in {areaName}.");
+                log += $"No outbreak in {areaName}.";
                 continue;
             }
             Debug.Assert(area.IsValid);
@@ -51,35 +54,39 @@ public static class ConsolePermuter
 
                 if (!hasPrintedAreaMMO)
                 {
-                    Console.WriteLine($"Found paths for Massive Mass Outbreaks in {areaName}.");
-                    Console.WriteLine("==========");
+                    log += $"Found paths for Massive Mass Outbreaks in {areaName}.";
+                    log += "==========";
                     hasPrintedAreaMMO = true;
                 }
 
-                Console.WriteLine($"Spawner {j+1} at ({spawner.X:F1}, {spawner.Y:F1}, {spawner.Z}) shows {SpeciesName.GetSpeciesName(spawner.DisplaySpecies, 2)}");
-                Console.WriteLine(spawn);
-                result.PrintResults(spawner.DisplaySpecies);
-                Console.WriteLine();
+                log += $"Spawner {j+1} at ({spawner.X:F1}, {spawner.Y:F1}, {spawner.Z}) shows {SpeciesName.GetSpeciesName(spawner.DisplaySpecies, 2)}";
+                log += $"{spawn}";
+                blist.Add(result.PrintResults(spawner.DisplaySpecies));
             }
 
             if (!hasPrintedAreaMMO)
             {
-                Console.WriteLine($"Found no results for any Massive Mass Outbreak in {areaName}.");
+                log += $"Found no results for any Massive Mass Outbreak in {areaName}.";
             }
             else
             {
-                Console.WriteLine("Done permuting area.");
-                Console.WriteLine("==========");
+                log += "Done permuting area.";
+                log += "==========";
             }
+            alist.Add(log);
         }
+        return (alist, blist);
     }
 
     /// <summary>
     /// Permutes all the Mass Outbreaks to print out all possible spawns.
     /// </summary>
-    public static void PermuteBlockMassOutbreak(Span<byte> data)
+    public static (List<string>, List<string>) PermuteBlockMassOutbreak(Span<byte> data)
     {
-        Console.WriteLine("Permuting Mass Outbreaks.");
+        List<string> alist = new();
+        List<string> blist = new();
+        string log = string.Empty;
+        log += "Permuting Mass Outbreaks.";
         var block = new MassOutbreakSet8a(data);
         for (int i = 0; i < MassOutbreakSet8a.AreaCount; i++)
         {
@@ -87,7 +94,7 @@ public static class ConsolePermuter
             var areaName = AreaUtil.AreaTable[spawner.AreaHash];
             if (!spawner.HasOutbreak)
             {
-                Console.WriteLine($"No outbreak in {areaName}.");
+                log += $"No outbreak in {areaName}.";
                 continue;
             }
             Debug.Assert(spawner.IsValid);
@@ -103,34 +110,35 @@ public static class ConsolePermuter
             var result = Permuter.Permute(spawn, seed);
             if (!result.HasResults)
             {
-                Console.WriteLine($"Found no paths for {(Species)spawner.DisplaySpecies} Mass Outbreak in {areaName}.");
+                log += $"Found no paths for {(Species)spawner.DisplaySpecies} Mass Outbreak in {areaName}.";
                 continue;
             }
 
-            Console.WriteLine($"Found paths for {(Species)spawner.DisplaySpecies} Mass Outbreak in {areaName}:");
-            Console.WriteLine("==========");
-            Console.WriteLine($"Spawner at ({spawner.X:F1}, {spawner.Y:F1}, {spawner.Z}) shows {SpeciesName.GetSpeciesName(spawner.DisplaySpecies, 2)}");
-            Console.WriteLine(spawn);
-            result.PrintResults(spawner.DisplaySpecies);
-            Console.WriteLine();
+            log += $"Found paths for {(Species)spawner.DisplaySpecies} Mass Outbreak in {areaName}:";
+            log += "==========";
+            log += $"Spawner at ({spawner.X:F1}, {spawner.Y:F1}, {spawner.Z}) shows {SpeciesName.GetSpeciesName(spawner.DisplaySpecies, 2)}";
+            log += $"{spawn}";
+            blist.Add(result.PrintResults(spawner.DisplaySpecies));
         }
-        Console.WriteLine("Done permuting Mass Outbreaks.");
-        Console.WriteLine("==========");
+       log += "Done permuting Mass Outbreaks.";
+       log += "==========";
+        alist.Add(log);
+        return (alist, blist);
     }
 
-    /// <summary>
-    /// Permutes a single spawn with simple info.
-    /// </summary>
-    public static void PermuteSingle(SpawnInfo spawn, ulong seed, ushort species)
+/// <summary>
+/// Permutes a single spawn with simple info.
+/// </summary>
+public static string PermuteSingle(SpawnInfo spawn, ulong seed, ushort species)
     {
-        Console.WriteLine($"Permuting all possible paths for {seed:X16}.");
-        Console.WriteLine($"Parameters: {spawn}");
-        Console.WriteLine();
+        string log = string.Empty;
+        log += $"Permuting all possible paths for {seed:X16}.";
+        log += $"Parameters: {spawn}";
 
         var result = Permuter.Permute(spawn, seed);
-        result.PrintResults(species);
+        log += result.PrintResults(species);
 
-        Console.WriteLine();
-        Console.WriteLine("Done.");
+        log += "Done.";
+        return log;
     }
 }
