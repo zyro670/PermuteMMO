@@ -36,7 +36,7 @@ public sealed class EntityResult
     public string GetSummary(ushort species, ReadOnlySpan<Advance> advances)
     {
         var shiny = IsShiny ? $"{(ShinyXor == 0 ? '■' : '★')} - Shiny Rolls:  {RollCountUsed,2} (^{ShinyXor,2})" : "";
-        var alpha = IsAlpha ? "αlpha-" : "NOT αlpha";
+        var alpha = IsAlpha ? "αlpha - " : "NOT αlpha";
         var gender = Gender switch
         {
             2 => "",

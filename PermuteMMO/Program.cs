@@ -31,3 +31,6 @@ ConsolePermuter.PermuteMassiveMassOutbreak(data_mmo);
 Console.WriteLine();
 Console.WriteLine("==========");
 ConsolePermuter.PermuteBlockMassOutbreak(data_mo);
+
+Console.WriteLine("Press [ENTER] to exit.");
+Console.ReadLine();
