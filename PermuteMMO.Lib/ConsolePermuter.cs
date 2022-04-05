@@ -133,20 +133,20 @@ public static class ConsolePermuter
     /// <summary>
     /// Permutes a single spawn with simple info.
     /// </summary>
-    public static List<string> PermuteSingle(SpawnInfo spawn, ulong seed, ushort species)
+    public static string PermuteSingle(SpawnInfo spawn, ulong seed, ushort species)
     {
-        List<string>log = new();
-        log.Add($"\nPermuting all possible paths for {seed:X16}.");
-        log.Add($"\nBase Species: {SpeciesName.GetSpeciesName(species, 2)}");
-        log.Add($"\nParameters: {spawn}");
+        string log = string.Empty;
+        log += $"\nPermuting all possible paths for {seed:X16}.";
+        log += $"\nBase Species: {SpeciesName.GetSpeciesName(species, 2)}";
+        log += $"\nParameters: {spawn}";
 
         var result = Permuter.Permute(spawn, seed);
         if (!result.HasResults)
-            log.Add("\nNo results found. Try another outbreak! :(");
+            log += "\nNo results found. Try another outbreak! :(";
         else
-            log.Add(result.PrintResults(species));
+            log += result.PrintResults(species);
 
-        log.Add("\nDone.");
+        log += "\nDone.";
         return log;
     }
 }
