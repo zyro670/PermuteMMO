@@ -59,6 +59,6 @@ public sealed record PermuteResult(Advance[] Advances, EntityResult Entity, in i
     public string Print(ushort species)
     {
         var steps = string.Join("|", Advances.Select(z => z.GetName()));
-        return $"* {steps,-30} >>> {(IsBonus ? "Bonus " : "")}Spawn{SpawnIndex} = {Entity.GetSummary(species, Advances)}";
+        return $"* {steps,-37} >>> {(IsBonus ? "Bonus " : "")}Spawn{SpawnIndex} = {Entity.GetSummary(species, Advances)}";
     }
 }

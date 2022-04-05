@@ -130,19 +130,23 @@ public static class ConsolePermuter
         return (alist, blist, clist);
     }
 
-/// <summary>
-/// Permutes a single spawn with simple info.
-/// </summary>
-public static string PermuteSingle(SpawnInfo spawn, ulong seed, ushort species)
+    /// <summary>
+    /// Permutes a single spawn with simple info.
+    /// </summary>
+    public static List<string> PermuteSingle(SpawnInfo spawn, ulong seed, ushort species)
     {
-        string log = string.Empty;
-        log += $"Permuting all possible paths for {seed:X16}.";
-        log += $"Parameters: {spawn}";
+        List<string>log = new();
+        log.Add($"\nPermuting all possible paths for {seed:X16}.");
+        log.Add($"\nBase Species: {SpeciesName.GetSpeciesName(species, 2)}");
+        log.Add($"\nParameters: {spawn}");
 
         var result = Permuter.Permute(spawn, seed);
-        log += result.PrintResults(species);
+        if (!result.HasResults)
+            log.Add("\nNo results found. Try another outbreak! :(");
+        else
+            log.Add(result.PrintResults(species));
 
-        log += "Done.";
+        log.Add("\nDone.");
         return log;
     }
 }

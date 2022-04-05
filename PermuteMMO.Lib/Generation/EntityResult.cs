@@ -36,7 +36,7 @@ public sealed class EntityResult
     public string GetSummary(ushort species, ReadOnlySpan<Advance> advances)
     {
         var shiny = IsShiny ? $"{(ShinyXor == 0 ? '■' : '★')} - Shiny Rolls:  {RollCountUsed,2} (^{ShinyXor,2})" : "";
-        var alpha = IsAlpha ? "αlpha - " : "NOT αlpha";
+        var alpha = IsAlpha ? "αlpha - " : "NOT αlpha - ";
         var gender = Gender switch
         {
             2 => "",
@@ -44,7 +44,7 @@ public sealed class EntityResult
             _ => " (M)",
         };
         var timid = GetTimidString(species, advances);
-        return $"{alpha}{Name}\nShiny: {shiny}\nPID: {PID:X8}\nEC: {EC:X8}\nIVs: {IVs[0]}/{IVs[1]}/{IVs[2]}/{IVs[3]}/{IVs[4]}/{IVs[5]}\nGender: {gender}\nLevel: {Level}\nNature: {(Nature)Nature}\nHeight: {Height}\nWeight: {Weight}\n{timid}\n";
+        return $"\n{alpha}{Name}\nShiny: {shiny}\nPID: {PID:X8}\nEC: {EC:X8}\nIVs: {IVs[0]}/{IVs[1]}/{IVs[2]}/{IVs[3]}/{IVs[4]}/{IVs[5]}\nGender: {gender}\nLevel: {Level}\nNature: {(Nature)Nature}\n{timid}";
 
     }
 
