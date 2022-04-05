@@ -44,7 +44,7 @@ public sealed class EntityResult
             _ => " (M)",
         };
         var timid = GetTimidString(species, advances);
-        return $"\n{alpha}{Name}\nShiny: {shiny}\nPID: {PID:X8}\nEC: {EC:X8}\nIVs: {IVs[0]}/{IVs[1]}/{IVs[2]}/{IVs[3]}/{IVs[4]}/{IVs[5]}\nGender: {gender}\nLevel: {Level}\nNature: {(Nature)Nature}\n{timid}";
+        return $"{alpha}{Name}\nShiny: {shiny}\nPID: {PID:X8}\nEC: {EC:X8}\nIVs: {IVs[0]}/{IVs[1]}/{IVs[2]}/{IVs[3]}/{IVs[4]}/{IVs[5]}\nGender: {gender}\nLevel: {Level}\nNature: {(Nature)Nature}\n{timid}\n";
 
     }
 
