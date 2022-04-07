@@ -13,10 +13,27 @@ public static class Permuter
     private const int MaxGhosts = 3;
 
     // State tracking
-    private readonly record struct SpawnState(in int Count, in int Alive = 0, in int Dead = 0, in int Ghost = 0)
+    private readonly record struct SpawnState(in int Count, in int Alive = 0, in int Dead = 0, in int Ghost = 0, int AliveAggressive = 0)
     {
-        public SpawnState Knockout(int count) => this with { Alive = Alive - count, Dead = Dead + count };
-        public SpawnState Generate(int count) => this with { Count = Count - count, Alive = Alive + count, Dead = Dead - count, Ghost = Dead - count };
+        public int MaxCountBattle => Math.Min(Alive, AliveAggressive + 1);
+
+        public SpawnState Knockout(int count)
+        {
+            // Prefer to knock out the Skittish, and any required Aggressives
+            var newAggro = AliveAggressive - count + 1;
+            Debug.Assert(newAggro >= 0);
+            return this with { Alive = Alive - count, Dead = Dead + count, AliveAggressive = newAggro };
+        }
+
+        public SpawnState Generate(int count, int aggro) => this with
+        {
+            Count = Count - count,
+            Alive = Alive + count,
+            Dead = Dead - count,
+            Ghost = Dead - count,
+            AliveAggressive = AliveAggressive + aggro,
+        };
+
         public SpawnState AddGhosts(int count) => this with { Alive = Alive - count, Dead = Dead + count, Ghost = count };
     }
 
@@ -49,10 +66,10 @@ public static class Permuter
         var emptySlots = state.Dead;
         var respawn = Math.Min(state.Count, emptySlots);
         Debug.Assert(respawn != 0);
-        var reseed = GenerateSpawns(meta, table, isBonus, seed, emptySlots, respawn);
+        var (reseed, aggro) = GenerateSpawns(meta, table, isBonus, seed, emptySlots, respawn);
 
         // Update spawn state
-        var newState = state.Generate(respawn);
+        var newState = state.Generate(respawn, aggro);
         ContinuePermute(meta, table, isBonus, reseed, newState);
     }
 
@@ -66,18 +83,20 @@ public static class Permuter
         }
 
         // Permute our remaining options
-        for (int i = 1; i <= state.Alive; i++)
+        for (int i = 1; i <= state.MaxCountBattle; i++)
         {
             var step = (int)Advance.A1 + (i - 1);
             meta.Start((Advance)step);
+
             var newState = state.Knockout(i);
             PermuteRecursion(meta, table, isBonus, seed, newState);
             meta.End();
         }
     }
 
-    private static ulong GenerateSpawns(PermuteMeta spawn, in ulong table, in bool isBonus, in ulong seed, int count, in int respawn)
+    private static (ulong Seed, int Aggressive) GenerateSpawns(PermuteMeta spawn, in ulong table, in bool isBonus, in ulong seed, int count, in int respawn)
     {
+        int aggressive = 0;
         var rng = new Xoroshiro128Plus(seed);
         for (int i = 1; i <= count; i++)
         {
@@ -90,8 +109,12 @@ public static class Permuter
             var generate = SpawnGenerator.Generate(subSeed, table, spawn.Spawner.Type);
             if (spawn.IsResult(generate))
                 spawn.AddResult(generate, i, isBonus);
+
+            if (generate.IsAggressive)
+                aggressive++;
         }
-        return rng.Next(); // Reset the seed for future spawns.
+        var result = rng.Next(); // Reset the seed for future spawns.
+        return (result, aggressive);
     }
 
     private static void PermuteFinish(PermuteMeta meta, in ulong table, in ulong seed, in SpawnState state)

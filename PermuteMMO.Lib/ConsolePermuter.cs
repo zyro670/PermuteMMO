@@ -62,7 +62,9 @@ public static class ConsolePermuter
 
                 log += $"\nSpawner {j+1} at ({spawner.X:F1}, {spawner.Y:F1}, {spawner.Z}) shows {SpeciesName.GetSpeciesName(spawner.DisplaySpecies, 2)}";
                 log += $"\n{spawn}";
-                blist.Add(result.PrintResults(spawner.DisplaySpecies));
+                bool hasSkittish = SpawnGenerator.IsSkittish(spawn.BaseTable);
+                //blist.Add(result.PrintResults(spawner.DisplaySpecies));
+                blist.Add(result.PrintResults(hasSkittish));
                 alist.Add((Species)spawner.DisplaySpecies);
             }
 
@@ -121,7 +123,9 @@ public static class ConsolePermuter
             log += "\n==========";
             log += $"\nSpawner at ({spawner.X:F1}, {spawner.Y:F1}, {spawner.Z}) shows {SpeciesName.GetSpeciesName(spawner.DisplaySpecies, 2)}";
             log += $"\n{spawn}";
-            blist.Add(result.PrintResults(spawner.DisplaySpecies));
+            bool hasSkittish = SpawnGenerator.IsSkittish(spawn.BaseTable);
+           //blist.Add(result.PrintResults(spawner.DisplaySpecies));
+            blist.Add(result.PrintResults(hasSkittish));
             alist.Add((Species)spawner.DisplaySpecies);
         }
        log += "\nDone permuting Mass Outbreaks.";
@@ -144,7 +148,10 @@ public static class ConsolePermuter
         if (!result.HasResults)
             log += "\nNo results found. Try another outbreak! :(";
         else
-            log += result.PrintResults(species);
+        {
+            bool hasSkittish = SpawnGenerator.IsSkittish(spawn.BaseTable);
+            result.PrintResults(hasSkittish);
+        }
 
         log += "\nDone.";
         return log;
