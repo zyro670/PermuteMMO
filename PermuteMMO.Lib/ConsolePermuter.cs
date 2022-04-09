@@ -62,9 +62,13 @@ public static class ConsolePermuter
 
                 log += $"\nSpawner {j+1} at ({spawner.X:F1}, {spawner.Y:F1}, {spawner.Z}) shows {SpeciesName.GetSpeciesName(spawner.DisplaySpecies, 2)}";
                 log += $"\n{spawn}";
-                bool hasSkittish = SpawnGenerator.IsSkittish(spawn.BaseTable);
+                bool skittishBase = SpawnGenerator.IsSkittish(spawn.BaseTable);
+                bool skittishBonus = SpawnGenerator.IsSkittish(spawn.BonusTable);
+                var lines = result.GetLines(skittishBase, skittishBonus);
+                foreach (var line in lines)
+                    blist.Add(line);
                 //blist.Add(result.PrintResults(spawner.DisplaySpecies));
-                blist.Add(result.PrintResults(hasSkittish));
+                //blist.Add(result.PrintResults(hasSkittish));
                 alist.Add((Species)spawner.DisplaySpecies);
             }
 
@@ -123,9 +127,13 @@ public static class ConsolePermuter
             log += "\n==========";
             log += $"\nSpawner at ({spawner.X:F1}, {spawner.Y:F1}, {spawner.Z}) shows {SpeciesName.GetSpeciesName(spawner.DisplaySpecies, 2)}";
             log += $"\n{spawn}";
-            bool hasSkittish = SpawnGenerator.IsSkittish(spawn.BaseTable);
-           //blist.Add(result.PrintResults(spawner.DisplaySpecies));
-            blist.Add(result.PrintResults(hasSkittish));
+            bool skittishBase = SpawnGenerator.IsSkittish(spawn.BaseTable);
+            bool skittishBonus = SpawnGenerator.IsSkittish(spawn.BonusTable);
+            var lines = result.GetLines(skittishBase, skittishBonus);
+            foreach (var line in lines)
+                blist.Add(line);
+            //blist.Add(result.PrintResults(spawner.DisplaySpecies));
+            //blist.Add(result.PrintResults(hasSkittish));
             alist.Add((Species)spawner.DisplaySpecies);
         }
        log += "\nDone permuting Mass Outbreaks.";
@@ -137,23 +145,26 @@ public static class ConsolePermuter
     /// <summary>
     /// Permutes a single spawn with simple info.
     /// </summary>
-    public static string PermuteSingle(SpawnInfo spawn, ulong seed, ushort species)
+    public static List<string> PermuteSingle(SpawnInfo spawn, ulong seed, ushort species)
     {
-        string log = string.Empty;
-        log += $"\nPermuting all possible paths for {seed:X16}.";
-        log += $"\nBase Species: {SpeciesName.GetSpeciesName(species, 2)}";
-        log += $"\nParameters: {spawn}";
+        List<string> log = new();
+        log.Add($"\nPermuting all possible paths for {seed:X16}.");
+        log.Add($"\nBase Species: {SpeciesName.GetSpeciesName(species, 2)}");
+        log.Add($"\nParameters: {spawn}");
 
         var result = Permuter.Permute(spawn, seed);
         if (!result.HasResults)
-            log += "\nNo results found. Try another outbreak! :(";
+            log.Add("\nNo results found. Try another outbreak! :(");
         else
         {
-            bool hasSkittish = SpawnGenerator.IsSkittish(spawn.BaseTable);
-            result.PrintResults(hasSkittish);
+            bool skittishBase = SpawnGenerator.IsSkittish(spawn.BaseTable);
+            bool skittishBonus = SpawnGenerator.IsSkittish(spawn.BonusTable);
+            var lines = result.GetLines(skittishBase, skittishBonus);
+            foreach (var line in lines)
+                log.Add("\n"+line);
         }
 
-        log += "\nDone.";
+        log.Add("\nDone.");
         return log;
     }
 }

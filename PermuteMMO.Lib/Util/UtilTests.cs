@@ -1,9 +1,7 @@
-﻿
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Newtonsoft.Json;
 using PermuteMMO.Lib;
 using PKHeX.Core;
-using static PermuteMMO.Lib.Advance;
 
 namespace PermuteMMO.Tests;
 

@@ -42,23 +42,70 @@ public sealed record PermuteMeta(SpawnInfo Spawner)
     /// <summary>
     /// Calls <see cref="PermuteResult.Print"/> for all objects in the result list.
     /// </summary>
-    public string PrintResults(bool indicateSkittish)
+    public IEnumerable<string> GetLines(bool skittishBase, bool skittishBonus = false)
     {
-        string found = string.Empty;
-        foreach (var result in Results)
-            found += result.Print(indicateSkittish);
+        //string found = string.Empty;
+        for (var i = 0; i < Results.Count; i++)
+        {
+            var result = Results[i];
+            var parent = FindNearestParentAdvanceResult(i, result.Advances);
+            bool isActionMultiResult = IsActionMultiResult(i, result.Advances);
+            yield return result.GetLine(parent, isActionMultiResult, skittishBase, skittishBonus);
+        }
 
-        return found;
+        //return found;
+    }
+
+    private bool IsActionMultiResult(int index, Advance[] child)
+    {
+        int count = 0;
+        // scan backwards until different
+        for (int i = index - 1; i >= 0; i--)
+        {
+            if (Results[i].Advances.SequenceEqual(child))
+                count++;
+            else
+                break;
+        }
+        // scan forwards until different
+        for (int i = index + 1; i < Results.Count; i++)
+        {
+            if (Results[i].Advances.SequenceEqual(child))
+                count++;
+            else
+                break;
+        }
+        return count != 0;
+    }
+
+    private PermuteResult? FindNearestParentAdvanceResult(int index, Advance[] child)
+    {
+        var start = index - 1;
+        if (start < 0)
+            return null;
+
+        // Due to how we depth-first search, previous results can contain overlapping advancement sequences.
+        // Find nearest previous result with advancement sequence being a subset of our child's sequence.
+        var nearest = Results.FindLastIndex(start, start, z => IsSubset(z.Advances, child));
+        if (nearest == -1)
+            return null;
+
+        // Non-null indicates this is a chain of results the user might want to pick (compared to other results).
+        return Results[nearest];
+    }
+
+    private static bool IsSubset(Advance[] parent, Advance[] child)
+    {
+        // check if parent sequence [0..n) matches child's [0..n)
+        if (parent.Length >= child.Length)
+            return false;
+        for (var i = 0; i < parent.Length; i++)
+        {
+            if (parent[i] != child[i])
+                return false;
+        }
+        return true;
     }
 
     public bool HasResults => Results.Count is not 0;
-}
-
-public sealed record PermuteResult(Advance[] Advances, EntityResult Entity, in int SpawnIndex, in bool IsBonus)
-{
-    public string Print(bool skittishBase, bool skittishBonus = false)
-    {
-        var steps = string.Join("|", Advances.Select(z => z.GetName()));
-        return $"* {steps,-37} >>> {(IsBonus ? "Bonus " : "")}Spawn{SpawnIndex} = {Entity.GetSummary(Advances, skittishBase, skittishBonus)}";
-    }
 }
