@@ -1,7 +1,7 @@
 ﻿using PermuteMMO.Lib;
 
 // Change the criteria for emitting matches here.
-PermuteMeta.SatisfyCriteria = (result, advances) => result.IsShiny;
+PermuteMeta.SatisfyCriteria = (result, advances) => result.IsShiny && (advances.Count == 0 || result.Species is ((int)PKHeX.Core.Species.Basculin or (int)PKHeX.Core.Species.Basculegion));
 
 // If a spawner json exists, spawn from that instead
 const string json = "spawner.json";
@@ -9,7 +9,6 @@ if (File.Exists(json))
 {
     var info = JsonDecoder.Deserialize<UserEnteredSpawnInfo>(File.ReadAllText(json));
     var spawner = info.GetSpawn();
-    SpawnGenerator.MaxShinyRolls = spawner.Type is SpawnType.MMO ? 19 : 32;
     var results = ConsolePermuter.PermuteSingle(spawner, info.GetSeed(), info.Species);
     string result = string.Join(" ", results);
     Console.WriteLine(result);
@@ -32,13 +31,13 @@ else
     if (File.Exists(file))
         data_mo = File.ReadAllBytes(file_mo);
     else
-        data_mo = SpawnGenerator.SaveFile.Accessor.GetBlock(0x1E0F1BA3).Data;
+        data_mo = SaveFileParameter.GetMassOutbreakData();
 
     const string file_mmo = "mmo.bin";
     if (File.Exists(file_mmo))
         data_mmo = File.ReadAllBytes(file_mmo);
     else
-        data_mmo = SpawnGenerator.SaveFile.Accessor.GetBlock(0x7799EB86).Data;
+        data_mmo = SaveFileParameter.GetMassiveMassOutbreakData();
 }
 
 // Compute and print.

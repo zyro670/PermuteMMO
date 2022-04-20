@@ -10,7 +10,10 @@ public sealed class EntityResult
     public string Name { get; init; } = string.Empty;
     public readonly byte[] IVs = { byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue };
 
-    public ulong Seed { get; init; }
+    public ulong GroupSeed { get; init; }
+    public int Index { get; init; }
+    public ulong SlotSeed { get; init; }
+    public ulong GenSeed { get; init; }
     public int Level { get; init; }
 
     public uint EC { get; set; }
@@ -31,10 +34,11 @@ public sealed class EntityResult
     public byte Height { get; set; }
     public byte Weight { get; set; }
 
+    public bool IsOblivious => BehaviorUtil.Oblivious.Contains(Species);
     public bool IsSkittish => BehaviorUtil.Skittish.Contains(Species);
-    public bool IsAggressive => IsAlpha || !IsSkittish;
+    public bool IsAggressive => IsAlpha || !(IsSkittish || IsOblivious);
 
-    public string GetSummary(ReadOnlySpan<Advance> advances, bool skittishBase, bool skittishBonus)
+    public string GetSummary()
     {
         var shiny = IsShiny ? $"{(ShinyXor == 0 ? '■' : '★')} - Shiny Rolls:  {RollCountUsed,2}" : "";
         var alpha = IsAlpha ? "αlpha - " : "NOT αlpha - ";
@@ -44,42 +48,7 @@ public sealed class EntityResult
             1 => " (F)",
             _ => " (M)",
         };
-        var feasibility = GetFeasibility(advances, skittishBase, skittishBonus);
-        return $"{alpha}{Name}\nShiny: {shiny}\nPID: {PID:X8}\nEC: {EC:X8}\nIVs: {IVs[0]}/{IVs[1]}/{IVs[2]}/{IVs[3]}/{IVs[4]}/{IVs[5]}\nGender: {gender}\nLevel: {Level}\nNature: {(Nature)Nature}\n{feasibility}\n";
+        return $"{alpha}{Name}\nShiny: {shiny}\nPID: {PID:X8}\nEC: {EC:X8}\nIVs: {IVs[0]}/{IVs[1]}/{IVs[2]}/{IVs[3]}/{IVs[4]}/{IVs[5]}\nGender: {gender}\nLevel: {Level}\nNature: {(Nature)Nature}\n";
 
-    }
-
-    private static string GetFeasibility(ReadOnlySpan<Advance> advances, bool skittishBase, bool skittishBonus)
-    {
-        if (!advances.IsAnyMulti())
-            return " -- Single advances!";
-
-        if (!skittishBase && !skittishBonus)
-            return string.Empty;
-
-        bool skittishMulti = false;
-        int bonusIndex = GetBonusStartIndex(advances);
-        if (bonusIndex != -1)
-        {
-            skittishMulti |= skittishBase && advances[..bonusIndex].IsAnyMulti();
-            skittishMulti |= skittishBonus && advances[bonusIndex..].IsAnyMulti();
-        }
-        else
-        {
-            skittishMulti |= skittishBase && advances.IsAnyMulti();
-        }
-
-        if (skittishMulti)
-            return " -- Skittish: Aggressive!";
-        return " -- Skittish: Single advances!";
-    }
-    private static int GetBonusStartIndex(ReadOnlySpan<Advance> advances)
-    {
-        for (int i = 0; i < advances.Length; i++)
-        {
-            if (advances[i] == Advance.SB)
-                return i;
-        }
-        return -1;
-    }
+    }    
 }

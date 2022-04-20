@@ -3,15 +3,29 @@
 /// <summary>
 /// Stores object-type references for cleaner passing internally. Only refer to <see cref="Results"/> when done.
 /// </summary>
-public sealed record PermuteMeta(SpawnInfo Spawner)
+public sealed record PermuteMeta(SpawnInfo Spawner, int MaxDepth)
 {
     /// <summary>
     /// Global configuration for determining if a <see cref="EntityResult"/> is a suitable result.
     /// </summary>
-    public static Func<EntityResult, IReadOnlyList<Advance>, bool> SatisfyCriteria { private get; set; } = (result, _) => result.IsShiny && result.IsAlpha;
+    public static Func<EntityResult, IReadOnlyList<Advance>, bool> SatisfyCriteria { get; set; } = (result, _) => result.IsShiny && result.IsAlpha;
+
+    public Func<EntityResult, IReadOnlyList<Advance>, bool> Criteria { get; set; } = SatisfyCriteria;
 
     public readonly List<PermuteResult> Results = new();
-    private readonly List<Advance> Advances = new();
+    private readonly List<Advance> Advances = new(MaxDepth);
+
+    public PermuteMeta Copy() => new(Spawner, MaxDepth);
+
+    public bool HasResults => Results.Count is not 0;
+    public SpawnInfo Spawner { get; set; } = Spawner;
+
+    public (bool CanContinue, SpawnInfo Next) AttemptNextWave()
+    {
+        if (Advances.Count < MaxDepth && Spawner.GetNextWave(out var next))
+            return (true, next);
+        return (false, Spawner);
+    }
 
     /// <summary>
     /// Signals the start of a recursive permutation step.
@@ -27,22 +41,22 @@ public sealed record PermuteMeta(SpawnInfo Spawner)
     /// <summary>
     /// Stores a result.
     /// </summary>
-    public void AddResult(EntityResult entity, in int index, in bool isBonus)
+    public void AddResult(EntityResult entity)
     {
         var steps = Advances.ToArray();
-        var result = new PermuteResult(steps, entity, index, isBonus);
+        var result = new PermuteResult(steps, entity);
         Results.Add(result);
     }
 
     /// <summary>
     /// Checks if the <see cref="entity"/> is a suitable result.
     /// </summary>
-    public bool IsResult(EntityResult entity) => SatisfyCriteria(entity, Advances);
+    public bool IsResult(EntityResult entity) => Criteria(entity, Advances);
 
     /// <summary>
     /// Calls <see cref="PermuteResult.Print"/> for all objects in the result list.
     /// </summary>
-    public IEnumerable<string> GetLines(bool skittishBase, bool skittishBonus = false)
+    public IEnumerable<string> GetLines()
     {
         //string found = string.Empty;
         for (var i = 0; i < Results.Count; i++)
@@ -50,10 +64,16 @@ public sealed record PermuteMeta(SpawnInfo Spawner)
             var result = Results[i];
             var parent = FindNearestParentAdvanceResult(i, result.Advances);
             bool isActionMultiResult = IsActionMultiResult(i, result.Advances);
-            yield return result.GetLine(parent, isActionMultiResult, skittishBase, skittishBonus);
+            bool hasChildChain = HasChildChain(i, result.Advances);
+            yield return result.GetLine(parent, isActionMultiResult, hasChildChain);
         }
+    }
 
-        //return found;
+    private bool HasChildChain(int index, Advance[] parent)
+    {
+        if (++index >= Results.Count)
+            return false;
+        return IsSubset(parent, Results[index].Advances);
     }
 
     private bool IsActionMultiResult(int index, Advance[] child)
@@ -106,6 +126,4 @@ public sealed record PermuteMeta(SpawnInfo Spawner)
         }
         return true;
     }
-
-    public bool HasResults => Results.Count is not 0;
 }

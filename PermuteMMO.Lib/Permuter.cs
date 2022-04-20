@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using PKHeX.Core;
+﻿using PKHeX.Core;
 
 namespace PermuteMMO.Lib;
 
@@ -8,147 +7,206 @@ namespace PermuteMMO.Lib;
 /// </summary>
 public static class Permuter
 {
-    private const int MaxAlive = 4;
-    private const int MaxDead = 4;
-    private const int MaxGhosts = 3;
-
-    // State tracking
-    private readonly record struct SpawnState(in int Count, in int Alive = 0, in int Dead = 0, in int Ghost = 0, int AliveAggressive = 0)
-    {
-        public int MaxCountBattle => Math.Min(Alive, AliveAggressive + 1);
-
-        public SpawnState Knockout(int count)
-        {
-            // Prefer to knock out the Skittish, and any required Aggressives
-            var newAggro = AliveAggressive - count + 1;
-            Debug.Assert(newAggro >= 0);
-            return this with { Alive = Alive - count, Dead = Dead + count, AliveAggressive = newAggro };
-        }
-
-        public SpawnState Generate(int count, int aggro) => this with
-        {
-            Count = Count - count,
-            Alive = Alive + count,
-            Dead = Dead - count,
-            Ghost = Dead - count,
-            AliveAggressive = AliveAggressive + aggro,
-        };
-
-        public SpawnState AddGhosts(int count) => this with { Alive = Alive - count, Dead = Dead + count, Ghost = count };
-    }
-
     /// <summary>
     /// Iterates through all possible player actions with the starting <see cref="seed"/> and <see cref="spawner"/> details.
     /// </summary>
-    public static PermuteMeta Permute(SpawnInfo spawner, ulong seed)
+    public static PermuteMeta Permute(SpawnInfo spawner, in ulong seed, int maxDepth = 15)
     {
-        var info = new PermuteMeta(spawner);
-        var state = new SpawnState(spawner.BaseCount) { Dead = MaxDead };
+        var info = new PermuteMeta(spawner, maxDepth);
+        var state = new SpawnState(spawner.Set.Count, spawner.Detail.MaxAlive);
 
         // Generate the encounters!
-        PermuteRecursion(info, spawner.BaseTable, false, seed, state);
+        PermuteRecursion(info, spawner.Set.Table, seed, state);
         return info;
     }
 
-    private static void PermuteRecursion(PermuteMeta spawn, in ulong table, in bool isBonus, in ulong seed, in SpawnState state)
+    private static void PermuteRecursion(PermuteMeta meta, in ulong table, in ulong seed, in SpawnState state)
     {
         // If the outbreak is not done, continue.
         if (state.Count != 0)
-            PermuteOutbreak(spawn, table, isBonus, seed, state);
-        else if (!isBonus && spawn.Spawner.HasBonus)
-            PermuteFinish(spawn, table, seed, state);
-        // Outbreak complete.
-    }
-
-    private static void PermuteOutbreak(PermuteMeta meta, in ulong table, in bool isBonus, in ulong seed, in SpawnState state)
-    {
-        // Re-spawn to capacity
-        var emptySlots = state.Dead;
-        var respawn = Math.Min(state.Count, emptySlots);
-        Debug.Assert(respawn != 0);
-        var (reseed, aggro) = GenerateSpawns(meta, table, isBonus, seed, emptySlots, respawn);
-
-        // Update spawn state
-        var newState = state.Generate(respawn, aggro);
-        ContinuePermute(meta, table, isBonus, reseed, newState);
-    }
-
-    private static void ContinuePermute(PermuteMeta meta, in ulong table, in bool isBonus, in ulong seed, in SpawnState state)
-    {
-        // Check if we're now out of possible re-spawns
-        if (state.Count == 0)
         {
-            PermuteRecursion(meta, table, isBonus, seed, state);
+            PermuteOutbreak(meta, table, seed, state);
             return;
         }
 
-        // Permute our remaining options
-        for (int i = 1; i <= state.MaxCountBattle; i++)
-        {
-            var step = (int)Advance.A1 + (i - 1);
-            meta.Start((Advance)step);
+        var (canContinue, next) = meta.AttemptNextWave();
+        if (!canContinue)
+            return;
 
-            var newState = state.Knockout(i);
-            PermuteRecursion(meta, table, isBonus, seed, newState);
+        // Try the next table before we try adding ghosts.
+        PermuteNextTable(meta, next, seed, state);
+
+        // Try adding ghost spawns if we haven't capped out yet.
+        if (meta.Spawner.AllowGhosts && state.CanAddGhosts)
+            PermuteAddGhosts(meta, seed, table, state);
+
+        // Outbreak complete.
+    }
+
+    private static void PermuteOutbreak(PermuteMeta meta, in ulong table, in ulong seed, in SpawnState state)
+    {
+        // Re-spawn to capacity
+        var (reseed, newState) = UpdateRespawn(meta, table, seed, state);
+        ContinuePermute(meta, table, reseed, newState);
+    }
+
+    public static (ulong, SpawnState) UpdateRespawn(PermuteMeta meta, ulong table, ulong seed, SpawnState state)
+    {
+        var (empty, respawn, ghosts) = state.GetRespawnInfo();
+        var (reseed, alpha, aggro, beta, oblivious)
+                    = GenerateSpawns(meta, table, seed, empty, ghosts, state.AliveAlpha, meta.Spawner.NoMultiAlpha);
+
+        // Update spawn state
+        var newState = state.Add(respawn, alpha, aggro, beta, oblivious);
+        return (reseed, newState);
+    }
+
+    private static void ContinuePermute(PermuteMeta meta, in ulong table, in ulong seed, in SpawnState state)
+    {
+        // If our spawner loops (regular), handle differently.
+        if (meta.Spawner.RetainExisting)
+        {
+            for (int i = 1; i <= state.Alive; i++)
+            {
+                var step = (int)Advance.A1 + (i - 1);
+                meta.Start((Advance)step);
+                var newState = state.KnockoutAny(i);
+                PermuteRecursion(meta, table, seed, newState);
+                meta.End();
+            }
+            return;
+        }
+
+        // Check if we're now out of possible re-spawns
+        if (state.Count == 0)
+        {
+            PermuteRecursion(meta, table, seed, state);
+            return;
+        }
+
+        // Depending on what spawns in future calls, the actions we take here can impact the options for future recursion.
+        // We need to try out every single potential action the player can do, and target removals for specific behaviors.
+
+        // De-spawn: Aggressive Only
+        if (state.AliveAggressive != 0)
+        {
+            for (int i = 1; i <= state.AliveAggressive; i++)
+            {
+                var step = (int)Advance.A1 + (i - 1);
+                meta.Start((Advance)step);
+                var newState = state.KnockoutAggressive(i);
+                PermuteRecursion(meta, table, seed, newState);
+                meta.End();
+            }
+        }
+
+        if (state.AliveOblivious != 0)
+        {
+            for (int i = 0; i <= state.AliveAggressive; i++)
+            {
+                var step = (int)Advance.O1 + i;
+                meta.Start((Advance)step);
+                var newState = state.KnockoutOblivious(i + 1);
+                PermuteRecursion(meta, table, seed, newState);
+                meta.End();
+            }
+        }
+
+        // De-spawn: Single beta with aggressive(s) / none.
+        if (state.AliveBeta != 0)
+        {
+            for (int i = 0; i <= state.AliveAggressive; i++)
+            {
+                var step = (int)Advance.B1 + i;
+                meta.Start((Advance)step);
+                var newState = state.KnockoutBeta(i + 1);
+                PermuteRecursion(meta, table, seed, newState);
+                meta.End();
+            }
+        }
+
+        // De-spawn: Multiple betas (Scaring)
+        for (int i = 2; i <= state.AliveBeta; i++)
+        {
+            var step = (int)Advance.S2 + (i - 2);
+            meta.Start((Advance)step);
+            var newState = state.Scare(i);
+            PermuteRecursion(meta, table, seed, newState);
             meta.End();
         }
     }
 
-    private static (ulong Seed, int Aggressive) GenerateSpawns(PermuteMeta spawn, in ulong table, in bool isBonus, in ulong seed, int count, in int respawn)
+    private static (ulong Seed, int Alpha, int Aggressive, int Skittish, int Oblivious)
+            GenerateSpawns(PermuteMeta meta, in ulong table, in ulong seed, int count, in int ghosts, int currentAlpha, bool onlyOneAlpha)
     {
+        int alpha = 0;
         int aggressive = 0;
+        int beta = 0;
+        int oblivious = 0;
         var rng = new Xoroshiro128Plus(seed);
         for (int i = 1; i <= count; i++)
         {
-            var subSeed = rng.Next();
-            _ = rng.Next(); // Unknown
+            var subSeed = rng.Next(); // generate/slot seed
+            _ = rng.Next(); // alpha move, don't care
 
-            if (i > respawn)
-                continue; // end of wave ghost
+            if (i <= ghosts)
+                continue; // end of wave ghost -- ghosts spawn first!
 
-            var generate = SpawnGenerator.Generate(subSeed, table, spawn.Spawner.Type);
-            if (spawn.IsResult(generate))
-                spawn.AddResult(generate, i, isBonus);
+            bool noAlpha = onlyOneAlpha && currentAlpha + alpha != 0;
+            var generate = SpawnGenerator.Generate(seed, i, subSeed, table, meta.Spawner.Detail.SpawnType, noAlpha);
+            if (generate is null) // only a consideration for spawners with 100% static alphas, qty >1, maybe some weather/time tables?
+                continue; // empty ghost slot -- spawn failure.
 
-            if (generate.IsAggressive)
-                aggressive++;
+            if (meta.IsResult(generate))
+                meta.AddResult(generate);
+
+            if (generate.IsAlpha) alpha++;
+            else if (generate.IsOblivious) oblivious++;
+            else if (generate.IsSkittish) beta++;
+            else aggressive++;
         }
         var result = rng.Next(); // Reset the seed for future spawns.
-        return (result, aggressive);
+        return (result, alpha, aggressive + alpha, beta, oblivious);
     }
 
-    private static void PermuteFinish(PermuteMeta meta, in ulong table, in ulong seed, in SpawnState state)
+    private static void PermuteNextTable(PermuteMeta meta, SpawnInfo next, in ulong seed, in SpawnState exist)
     {
-        PermuteBonusTable(meta, seed);
+        if (!next.RetainExisting)
+            meta.Start(Advance.CR);
 
-        // Try adding ghost spawns if we haven't capped out yet.
-        if (state.Ghost is not MaxGhosts)
-            PermuteAddGhosts(meta, seed, table, state);
-    }
+        var current = meta.Spawner;
+        meta.Spawner = next;
+        var newAlive = next.Detail.MaxAlive;
 
-    private static void PermuteBonusTable(PermuteMeta meta, in ulong seed)
-    {
-        meta.Start(Advance.SB);
-        var state = new SpawnState(meta.Spawner.BonusCount) { Dead = MaxDead };
-        PermuteOutbreak(meta, meta.Spawner.BonusTable, true, seed, state);
-        meta.End();
+        SpawnState state;
+        if (next.RetainExisting)
+        {
+            var maxAlive = Math.Max(newAlive, exist.MaxAlive);
+            var newCount = Math.Max(0, maxAlive - exist.Alive);
+            state = exist with { MaxAlive = maxAlive, Count = newCount };
+        }
+        else
+        {
+            var newCount = next.Set.Count;
+            state = new SpawnState(newCount, newAlive);
+        }
+        PermuteOutbreak(meta, next.Set.Table, seed, state);
+
+        meta.Spawner = current;
+        if (!next.RetainExisting)
+            meta.End();
     }
 
     private static void PermuteAddGhosts(PermuteMeta meta, in ulong seed, in ulong table, in SpawnState state)
     {
-        var remain = MaxAlive - state.Ghost;
-        for (int i = 1; i < remain; i++)
+        var remain = state.EmptyGhostSlots;
+        for (int i = 1; i <= remain; i++)
         {
-            // Get updated state with added ghosts
-            var ghosts = state.Ghost + i;
-            var newState = state.AddGhosts(ghosts);
             var step = (int)Advance.G1 + (i - 1);
-
-            // Simulate ghost advancements via camp reset
-            var gSeed = Calculations.GetGroupSeed(seed, ghosts);
-
             meta.Start((Advance)step);
-            PermuteRecursion(meta, table, false, gSeed, newState);
+            var newState = state.AddGhosts(i);
+            var gSeed = Calculations.GetGroupSeed(seed, newState.Ghost);
+            PermuteRecursion(meta, table, gSeed, newState);
             meta.End();
         }
     }

@@ -4,6 +4,14 @@ namespace PermuteMMO.Lib;
 
 public static class BehaviorUtil
 {
+    public static readonly HashSet<ushort> Oblivious = new()
+    {
+        (ushort)Lickilicky,
+        (ushort)Lickitung,
+        (ushort)Magikarp,
+        (ushort)MrMime,
+    };
+
     public static readonly HashSet<ushort> Skittish = new()
     {
         (ushort)Abra,

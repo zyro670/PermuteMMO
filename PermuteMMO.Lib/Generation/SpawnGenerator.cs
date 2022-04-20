@@ -9,50 +9,22 @@ namespace PermuteMMO.Lib;
 /// </summary>
 public static class SpawnGenerator
 {
-    public static readonly IReadOnlyDictionary<ulong, SlotDetail[]> EncounterTables = JsonDecoder.GetDictionary(Resources.mmo_es);
-
-    #region Public Mutable - Useful for DLL consumers
-    public static SAV8LA SaveFile { get; set; } = GetFake();
-    public static PokedexSave8a Pokedex => SaveFile.PokedexSave;
-    public static byte[] BackingArray => SaveFile.Blocks.GetBlock(0x02168706).Data;
-    public static bool HasCharm { get; set; } = true;
-    public static int MaxShinyRolls { get; set; }
-    #endregion
-
-    private static SAV8LA GetFake()
-    {
-        if (File.Exists("main"))
-        {
-            var data = File.ReadAllBytes("main");
-            var sav = new SAV8LA(data);
-            HasCharm = sav.Inventory.Any(z => z.Items.Any(i => i.Index == 632 && i.Count is not 0));
-            return sav;
-        }
-        return new SAV8LA();
-    }
-
-    /// <summary>
-    /// Checks if a Table (or species) is skittish.
-    /// </summary>
-    /// <param name="table">Table hash or species ID.</param>
-    /// <returns>True if skittish.</returns>
-    public static bool IsSkittish(ulong table)
-    {
-        var slots = GetSlots(table);
-        return slots.Any(z => z.IsSkittish);
-    }
+    public static readonly IDictionary<ulong, SlotDetail[]> EncounterTables = JsonDecoder.GetDictionary(Resources.mmo_es);
 
     /// <summary>
     /// Generates an <see cref="EntityResult"/> from the input <see cref="seed"/> and <see cref="table"/>.
     /// </summary>
-    public static EntityResult Generate(in ulong seed, in ulong table, SpawnType type)
+    public static EntityResult? Generate(in ulong groupseed, in int index, in ulong seed, in ulong table, SpawnType type, bool noAlpha)
     {
         var slotrng = new Xoroshiro128Plus(seed);
 
         var slots = GetSlots(table);
-        var slotSum = slots.Sum(z => z.Rate);
+        var slotSum = GetSlotSum(slots, noAlpha);
+        if (slotSum == 0)
+            return null;
+
         var slotroll = slotrng.NextFloat(slotSum);
-        var slot = GetSlot(slots, slotroll);
+        var slot = GetSlot(slots, slotroll, noAlpha);
         var genseed = slotrng.Next();
         var level = GetLevel(slot, slotrng);
 
@@ -60,7 +32,7 @@ public static class SpawnGenerator
         var gt = PersonalTable.LA.GetFormEntry(slot.Species, slot.Form).Gender;
 
         // Get roll count from save file
-        int shinyRolls = GetRerollCount(slot.Species, type);
+        int shinyRolls = SaveFileParameter.GetRerollCount(slot.Species, type);
 
         var result = new EntityResult
         {
@@ -69,7 +41,10 @@ public static class SpawnGenerator
             Level = level,
             IsAlpha = slot.IsAlpha,
 
-            Seed = seed,
+            GroupSeed = groupseed,
+            Index = index,
+            SlotSeed = seed,
+            GenSeed = genseed,
             Name = slot.Name,
         };
 
@@ -108,15 +83,6 @@ public static class SpawnGenerator
         return Outbreaks[species] = value;
     }
 
-    private static int GetRerollCount(in int species, SpawnType type)
-    {
-        if (MaxShinyRolls is not 0)
-            return MaxShinyRolls;
-        bool perfect = Pokedex.IsPerfect(species);
-        bool complete = Pokedex.IsComplete(species);
-        return 1 + (complete ? 1 : 0) + (perfect ? 2 : 0) + (HasCharm ? 3 : 0) + (int)type;
-    }
-
     private static int GetLevel(SlotDetail slot, Xoroshiro128Plus slotrng)
     {
         var min = slot.LevelMin;
@@ -128,13 +94,28 @@ public static class SpawnGenerator
         return level;
     }
 
-    private static SlotDetail GetSlot(IEnumerable<SlotDetail> slots, float slotroll)
+    private static float GetSlotSum(IEnumerable<SlotDetail> slots, bool noAlpha)
     {
-        foreach (var s in slots)
+        float total = 0;
+        foreach (var slot in slots)
         {
-            slotroll -= s.Rate;
+            if (noAlpha && slot.IsAlpha)
+                continue;
+            total += slot.Rate;
+        }
+        return total;
+    }
+
+    private static SlotDetail GetSlot(IEnumerable<SlotDetail> slots, float slotroll, bool noAlpha)
+    {
+        foreach (var slot in slots)
+        {
+            if (noAlpha && slot.IsAlpha)
+                continue;
+
+            slotroll -= slot.Rate;
             if (slotroll <= 0)
-                return s;
+                return slot;
         }
         throw new ArgumentOutOfRangeException(nameof(slotroll));
     }

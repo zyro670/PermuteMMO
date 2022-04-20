@@ -39,15 +39,8 @@ public static class ConsolePermuter
                     continue;
 
                 Debug.Assert(spawner.HasBase);
-                var seed = spawner.SpawnSeed;
-                var spawn = new SpawnInfo
-                {
-                    BaseCount = spawner.BaseCount,
-                    BaseTable = spawner.BaseTable,
-
-                    BonusCount = spawner.HasBonus ? spawner.BonusCount : 0,
-                    BonusTable = spawner.HasBonus ? spawner.BonusTable : 0,
-                };
+                var seed = spawner.GroupSeed;
+                var spawn = new SpawnInfo(spawner);
 
                 var result = Permuter.Permute(spawn, seed);
                 if (!result.HasResults)
@@ -61,10 +54,8 @@ public static class ConsolePermuter
                 }
 
                 log += $"\nSpawner {j+1} at ({spawner.X:F1}, {spawner.Y:F1}, {spawner.Z}) shows {SpeciesName.GetSpeciesName(spawner.DisplaySpecies, 2)}";
-                log += $"\n{spawn}";
-                bool skittishBase = SpawnGenerator.IsSkittish(spawn.BaseTable);
-                bool skittishBonus = SpawnGenerator.IsSkittish(spawn.BonusTable);
-                var lines = result.GetLines(skittishBase, skittishBonus);
+                log += spawn.GetSummary($"\nParameters: \nSeed{seed}");
+                var lines = result.GetLines();
                 foreach (var line in lines)
                     blist.Add(line);
                 //blist.Add(result.PrintResults(spawner.DisplaySpecies));
@@ -108,13 +99,8 @@ public static class ConsolePermuter
             }
             Debug.Assert(spawner.IsValid);
 
-            var seed = spawner.SpawnSeed;
-            var spawn = new SpawnInfo
-            {
-                BaseCount = spawner.BaseCount,
-                BaseTable = spawner.DisplaySpecies,
-                Type = SpawnType.Outbreak,
-            };
+            var seed = spawner.GroupSeed;
+            var spawn = new SpawnInfo(spawner);
 
             var result = Permuter.Permute(spawn, seed);
             if (!result.HasResults)
@@ -126,10 +112,8 @@ public static class ConsolePermuter
             log += $"\nFound paths for {(Species)spawner.DisplaySpecies} Mass Outbreak in {areaName}:";
             log += "\n==========";
             log += $"\nSpawner at ({spawner.X:F1}, {spawner.Y:F1}, {spawner.Z}) shows {SpeciesName.GetSpeciesName(spawner.DisplaySpecies, 2)}";
-            log += $"\n{spawn}";
-            bool skittishBase = SpawnGenerator.IsSkittish(spawn.BaseTable);
-            bool skittishBonus = SpawnGenerator.IsSkittish(spawn.BonusTable);
-            var lines = result.GetLines(skittishBase, skittishBonus);
+            log += spawn.GetSummary($"\nParameters: {spawn}\nSeed{seed}");
+            var lines = result.GetLines();
             foreach (var line in lines)
                 blist.Add(line);
             //blist.Add(result.PrintResults(spawner.DisplaySpecies));
@@ -150,16 +134,14 @@ public static class ConsolePermuter
         List<string> log = new();
         log.Add($"\nPermuting all possible paths for {seed:X16}.");
         log.Add($"\nBase Species: {SpeciesName.GetSpeciesName(species, 2)}");
-        log.Add($"\nParameters: {spawn}");
+        log.Add(spawn.GetSummary($"\nParameters: {spawn}\nSeed{seed}"));
 
         var result = Permuter.Permute(spawn, seed);
         if (!result.HasResults)
             log.Add("\nNo results found. Try another outbreak! :(");
         else
         {
-            bool skittishBase = SpawnGenerator.IsSkittish(spawn.BaseTable);
-            bool skittishBonus = SpawnGenerator.IsSkittish(spawn.BonusTable);
-            var lines = result.GetLines(skittishBase, skittishBonus);
+            var lines = result.GetLines();
             foreach (var line in lines)
                 log.Add("\n"+line);
         }
