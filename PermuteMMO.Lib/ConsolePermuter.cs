@@ -101,7 +101,6 @@ public static class ConsolePermuter
 
             var seed = spawner.GroupSeed;
             var spawn = new SpawnInfo(spawner);
-
             var result = Permuter.Permute(spawn, seed);
             if (!result.HasResults)
             {

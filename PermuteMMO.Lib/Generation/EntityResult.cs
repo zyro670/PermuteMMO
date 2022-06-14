@@ -5,7 +5,7 @@ namespace PermuteMMO.Lib;
 /// <summary>
 /// Spawned Pokémon Data that can be encountered.
 /// </summary>
-public sealed class EntityResult
+public sealed record EntityResult(SlotDetail Slot)
 {
     public string Name { get; init; } = string.Empty;
     public readonly byte[] IVs = { byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue };
@@ -13,7 +13,9 @@ public sealed class EntityResult
     public ulong GroupSeed { get; init; }
     public int Index { get; init; }
     public ulong SlotSeed { get; init; }
+    public float SlotRoll { get; init; }
     public ulong GenSeed { get; init; }
+    public ulong AlphaSeed { get; init; }
     public int Level { get; init; }
 
     public uint EC { get; set; }
@@ -48,7 +50,28 @@ public sealed class EntityResult
             1 => " (F)",
             _ => " (M)",
         };
-        return $"{alpha}{Name}\nShiny: {shiny}\nPID: {PID:X8}\nEC: {EC:X8}\nIVs: {IVs[0]}/{IVs[1]}/{IVs[2]}/{IVs[3]}/{IVs[4]}/{IVs[5]}\nGender: {gender}\nLevel: {Level}\nNature: {(Nature)Nature}\n";
+        return $"{alpha}{Slot.Name}\nShiny: {shiny}\nPID: {PID:X8}\nEC: {EC:X8}\nIVs: {IVs[0]}/{IVs[1]}/{IVs[2]}/{IVs[3]}/{IVs[4]}/{IVs[5]}\nGender: {gender}\nLevel: {Level}\nNature: {(Nature)Nature}\n";
 
-    }    
+    }
+    public IEnumerable<string> GetLines()
+    {
+        var shiny = IsShiny ? $" {RollCountUsed,2} {(ShinyXor == 0 ? '■' : '*')}" : "";
+        var s = GameInfo.GetStrings(1);
+        var alpha = IsAlpha ? "α-" : "";
+        yield return shiny + alpha + Slot.Name;
+        yield return $"Group Seed: {GroupSeed:X16}";
+        yield return $"Alpha Move Seed: {AlphaSeed:X16}";
+        yield return $"Slot Seed: {SlotSeed:X16}";
+        yield return $"Slot: {SlotRoll:F5}";
+        yield return $"Level: {Level}";
+        yield return $"Seed: {GenSeed:X16}";
+        yield return $"  EC: {EC:X8}";
+        yield return $"  PID: {PID:X8}";
+        yield return $"  Flawless IVs: {Slot.FlawlessIVs}";
+        yield return $"  IVs: {string.Join('/', IVs)}";
+        yield return $"  Ability: {Ability}";
+        yield return $"  Gender: {Gender switch { 0 => "M", 1 => "F", _ => "-" }}";
+        yield return $"  Nature: {s.Natures[Nature]}";
+        yield return $"  {Height} | {Weight}";
+    }
 }
