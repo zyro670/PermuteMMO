@@ -29,7 +29,7 @@ public static class SpawnGenerator
         var level = GetLevel(slot, slotrng);
 
         // Determine stuff from slot detail
-        var gt = PersonalTable.LA.GetFormEntry(slot.Species, slot.Form).Gender;
+        var gt = PersonalTable.LA.GetFormEntry(slot.Species, (byte)slot.Form).Gender;
 
         // Get roll count from save file
         int shinyRolls = SaveFileParameter.GetRerollCount(slot.Species, type);
@@ -171,7 +171,7 @@ public static class SpawnGenerator
             PersonalInfo.RatioMagicGenderless => 2,
             PersonalInfo.RatioMagicFemale => 1,
             PersonalInfo.RatioMagicMale => 0,
-            _ => (int)rng.NextInt(252) + 1 < genderRatio ? (byte)1: (byte)0,
+            _ => (int)rng.NextInt(253) + 1 < genderRatio ? (byte)1 : (byte)0,
         };
         result.Nature = (byte)rng.NextInt(25);
 

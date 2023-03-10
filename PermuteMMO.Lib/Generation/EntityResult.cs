@@ -50,7 +50,7 @@ public sealed record EntityResult(SlotDetail Slot)
             1 => " (F)",
             _ => " (M)",
         };
-        return $"{alpha}{Slot.Name}\nShiny: {shiny}\nPID: {PID:X8}\nEC: {EC:X8}\nIVs: {IVs[0]}/{IVs[1]}/{IVs[2]}/{IVs[3]}/{IVs[4]}/{IVs[5]}\nGender: {gender}\nLevel: {Level}\nNature: {(Nature)Nature}\n";
+        return $"{alpha}{Slot.Name}\nShiny: {shiny}\nPID: {PID:X8}\nEC: {EC:X8}\nIVs: {IVs[0]}/{IVs[1]}/{IVs[2]}/{IVs[3]}/{IVs[4]}/{IVs[5]}\nGender: {gender}\nNature: {(Nature)Nature}\nLevel: {Level}\nHeight: {Height} | Weight: {Weight}";
 
     }
     public IEnumerable<string> GetLines()

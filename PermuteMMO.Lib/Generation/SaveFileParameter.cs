@@ -47,7 +47,7 @@ public static class SaveFileParameter
     /// <param name="species">Encounter species</param>
     /// <param name="type">Encounter Spawn type</param>
     /// <returns>[1,X] iteration of PID rolls permitted</returns>
-    public static int GetRerollCount(in int species, SpawnType type)
+    public static int GetRerollCount(in ushort species, SpawnType type)
     {
         if (!UseSaveFileShinyRolls)
             return (int)type;
